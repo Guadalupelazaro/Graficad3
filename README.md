@@ -1,1 +1,0 @@
-# Graficad3
