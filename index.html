@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8" />
+    <title>Animacion para una grafica con d3</title>
+    <link data-require="normalize@*" data-semver="3.0.1" rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/3.0.1/normalize.min.css" />
+      <!--se agrega el estilo de la grafica y de la misma se agregan los colores que le corresponde alos dias de la semana
+      -->         
+    <style>
+      #chart {
+        height: 360px;
+        margin: 0 auto;                                               /* NEW */
+        position: relative;
+        width: 360px;
+      }
+      .tooltip {
+        background: #eee;
+        box-shadow: 0 0 5px #999999;
+        color: #333;
+        display: none;
+        font-size: 12px;
+        left: 130px;
+        padding: 10px;
+        position: absolute;
+        text-align: center;
+        top: 95px;
+        width: 80px;
+        z-index: 10;
+      }
+        /*<!-- apartir de estas lineas de codigo se leda los movimientos a la grafica al dar clik a los dias de la semana y de esa forma la grafica se movera y le otorgara su porcentaje corespondiente
+        -->*/
+      .legend {
+        font-size: 12px;
+      }
+      rect {
+        cursor: pointer;                                              /* NEW */
+        stroke-width: 2;
+      }
+      rect.disabled {                                                 /* NEW */
+        fill: transparent !important;                                 /* NEW */
+      }                                                               /* NEW */
+      h1 {                                                            /* NEW */
+        font-size: 14px;                                              /* NEW */
+        text-align: center;                                           /* NEW */
+      }                                                               /* NEW */
+    </style>
+  </head>
+    <!--En estas lineas de codigo se agrega el titulo de la ágina y ademas se declaran las variables para se pueda crear la grafica, como el movimiento de 360° el radio de la grafica  -->
+  <body>
+    <h1>Toronto Parking Tickets by Weekday in 2012</h1>
+    <!-- NEW -->
+    <div id="chart"></div>
+    <script src="https://d3js.org/d3.v4.min.js" data-semver="4.0.0" data-require="d3@*"></script>
+    <script>
+      (function(d3) {
+        'use strict';
+
+        var width = 360;
+        var height = 360;
+        var radius = Math.min(width, height) / 2;
+        var donutWidth = 75;
+        var legendRectSize = 18;
+        var legendSpacing = 4;
+          
+         /* <!-- en estas lineas de codigo se declara variables como los colores en que se va a dividir cada seccion de la grafica y el porcentaje y ademas en las siguinetes lineas se declara  varios puntos donde la grafica esta compuesta por secciones*/
+        var color = d3.scaleOrdinal(d3.schemeCategory20b);
+
+        var svg = d3.select('#chart')
+          .append('svg')
+          .attr('width', width)
+          .attr('height', height)
+          .append('g')
+          .attr('transform', 'translate(' + (width / 2) + 
+            ',' + (height / 2) + ')');
+        var arc = d3.arc()
+          .innerRadius(radius - donutWidth)
+          .outerRadius(radius);
+
+        var pie = d3.pie()
+          .value(function(d) { return d.count; })
+          .sort(null);
+
+        var tooltip = d3.select('#chart')
+          .append('div')
+          .attr('class', 'tooltip');
+          
+        /*en estas lineas de codigo se declara varias clase muy inportantes para que la grafica se ve bien como el tipo de letra, en contenido, el porcentaje en que esta dividido la grafica que corresponde a cada dia de la semana*/
+        tooltip.append('div')
+          .attr('class', 'label');
+
+        tooltip.append('div')
+          .attr('class', 'count');
+
+        tooltip.append('div')
+          .attr('class', 'percent');
+          /* en esta linea de codigo se obtienen los datos del archivo complementario para que la grafica funcione*/
+        d3.csv('weekdays.csv', function(error, dataset) {
+          dataset.forEach(function(d) {
+            d.count = +d.count;
+            d.enabled = true;                                         // NEW
+          });
+
+          var path = svg.selectAll('path')
+            .data(pie(dataset))
+            .enter()
+            .append('path')
+            .attr('d', arc)
+            .attr('fill', function(d, i) { 
+              return color(d.data.label); 
+            })                                                        // UPDATED (removed semicolon)
+            .each(function(d) { this._current = d; });                // NEW
+            /*en estas lineas se le da la funcion al mause*/
+          path.on('mouseover', function(d) {
+            var total = d3.sum(dataset.map(function(d) {
+              return (d.enabled) ? d.count : 0;                       // UPDATED
+            }));
+              /* en estas lineas se da la funcion para que la grafica funciones utilizando las variables ya antes ya declarado*/
+            var percent = Math.round(1000 * d.data.count / total) / 10;
+            tooltip.select('.label').html(d.data.label);
+            tooltip.select('.count').html(d.data.count); 
+            tooltip.select('.percent').html(percent + '%'); 
+            tooltip.style('display', 'block');
+          });
+          /*en esta linea de codigo se leda un afuncion al mause que es que se pueda pasar el cursor por cada objeto de la grafica y se pueda desplegar la informacion de cada objeto y pueda cambiar cada que muevas en mause*/
+          path.on('mouseout', function() {
+            tooltip.style('display', 'none');
+          });
+
+          /* OPTIONAL 
+          path.on('mousemove', function(d) {
+            tooltip.style('top', (d3.event.pageY + 10) + 'px')
+              .style('left', (d3.event.pageX + 10) + 'px');
+          });
+          */
+            
+            /* en estas lineas de codigo se le dan las funciones ala barra que esta en centro de la grafica*/
+          var legend = svg.selectAll('.legend')
+            .data(color.domain())
+            .enter()
+            .append('g')
+            .attr('class', 'legend')
+            .attr('transform', function(d, i) {
+              var height = legendRectSize + legendSpacing;
+              var offset =  height * color.domain().length / 2;
+              var horz = -2 * legendRectSize;
+              var vert = i * height - offset;
+              return 'translate(' + horz + ',' + vert + ')';
+            });
+            /* en estas linea de codigo esta la funcion de los botones que se encuentran en el centro de la grafica que corresponde a cada dia de la semana*/
+          legend.append('rect')
+            .attr('width', legendRectSize)
+            .attr('height', legendRectSize)                                   
+            .style('fill', color)
+            .style('stroke', color)                                   // UPDATED (removed semicolon)
+            .on('click', function(label) {                            // NEW
+              var rect = d3.select(this);                             // NEW
+              var enabled = true;                                     // NEW
+              var totalEnabled = d3.sum(dataset.map(function(d) {     // NEW
+                return (d.enabled) ? 1 : 0;                           // NEW
+              }));                                                    // NEW
+              
+              if (rect.attr('class') === 'disabled') {                // NEW
+                rect.attr('class', '');                               // NEW
+              } else {                                                // NEW
+                if (totalEnabled < 2) return;                         // NEW
+                rect.attr('class', 'disabled');                       // NEW
+                enabled = false;                                      // NEW
+              }                                                       // NEW
+              /* en estas lineas de codigo se le da la funcion y carracteristicas a la grafica para que obtenga la funcion de movimineto de trastacion cada ves que se le de clik a cada uno de los bones que se encuentran en el centro de la grafica y que corresponda a cada dia de la semana */
+              pie.value(function(d) {                                 // NEW
+                if (d.label === label) d.enabled = enabled;           // NEW
+                return (d.enabled) ? d.count : 0;                     // NEW
+              });                                                     // NEW
+
+              path = path.data(pie(dataset));                         // NEW
+
+              path.transition()                                       // NEW
+                .duration(750)                                        // NEW
+                .attrTween('d', function(d) {                         // NEW
+                  var interpolate = d3.interpolate(this._current, d); // NEW
+                  this._current = interpolate(0);                     // NEW
+                  return function(t) {                                // NEW
+                    return arc(interpolate(t));                       // NEW
+                  };                                                  // NEW
+                });                                                   // NEW
+            });                                                       // NEW
+            /* en esta lineas de codigo esta la funcion para las letra que se encuentran en centro de la grafica para que se encuentren centradas y no este desordenadas */
+            
+          legend.append('text')
+            .attr('x', legendRectSize + legendSpacing)
+            .attr('y', legendRectSize - legendSpacing)
+            .text(function(d) { return d; });
+
+        });
+
+      })(window.d3);
+    </script>
+  </body>
+
+</html>
